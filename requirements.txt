@@ -3,3 +3,4 @@ scapy
 torch
 pandas
 numpy
+gunicorn
