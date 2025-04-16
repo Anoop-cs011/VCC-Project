@@ -145,7 +145,7 @@ def process_packet(packet):
 
 def start_monitor():
     print("[Monitor] Starting packet sniffer...")
-    sniff(prn=process_packet, filter="ip", store=0)
+    sniff(prn=process_packet, filter="ip", store=0, iface="eth0")
 
 monitor_thread = threading.Thread(target=start_monitor)
 monitor_thread.start()
