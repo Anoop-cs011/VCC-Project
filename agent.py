@@ -60,7 +60,7 @@ def load_model(model_path, input_dim, num_classes):
     return model
 
 model = load_model(MODEL_FILE, input_dim=len(feature_order), num_classes=len(attack_labels))
-
+print("Model loaded...")
 # --- Preprocessing ---
 def preprocess(entry):
     row = {}
