@@ -1,11 +1,13 @@
 from flask import Flask, request, redirect, render_template
-import monitor  # only for get_alerts()
+# import monitor  # only for get_alerts()
 import os
 import socket
+import json
 
 app = Flask(__name__)
-USER_FILE = "users.txt"
-SESSION_FILE = "session_log.csv"
+USER_FILE = "users.txt" # to store user login info
+SESSION_FILE = "session_log.csv" # to store current logged in users info
+alert_file = "intrusion_alerts.jsonl" # to read intrusion alerts
 
 open(USER_FILE, "a").close()
 if not os.path.exists(SESSION_FILE):
@@ -66,11 +68,22 @@ def is_user_logged_in(ip):
             return True
     return False
 
+def get_alerts():
+    try:
+        with open(alert_file, "r") as f:
+            alerts = [json.loads(line.strip()) for line in f if line.strip()][-10:]
+        for i in range(len(alerts)):
+            alerts[i] = tuple(alerts[i].values())
+        return alerts
+    except FileNotFoundError:
+        return []
+
 # Routes
 @app.route("/")
 def index():
     return redirect("/login")
 
+# Login page
 @app.route("/login", methods=["GET", "POST"])
 def login():
     error = None
@@ -87,6 +100,7 @@ def login():
             error = "Invalid credentials"
     return render_template("login.html", error=error)
 
+# Registration page
 @app.route("/register", methods=["GET", "POST"])
 def register():
     error = None
@@ -101,10 +115,12 @@ def register():
             return redirect("/login")
     return render_template("register.html", error=error)
 
+# user home page
 @app.route("/home/<username>")
 def home(username):
     return render_template("home.html", username=username)
 
+# serach names of other users
 @app.route("/search", methods=["GET", "POST"])
 def search():
     results = []
@@ -114,12 +130,14 @@ def search():
         results = [u for u in load_users() if query.lower() in u.lower()]
     return render_template("search.html", results=results, username=username)
 
+# Check alerts
 @app.route("/alerts")
 def alerts():
     username = request.args.get("username", "guest")
-    alerts = monitor.get_alerts()
+    alerts = get_alerts()
     return render_template("alerts.html", alerts=alerts, username=username)
 
+# logout
 @app.route("/logout/<username>")
 def logout(username):
     ip = request.remote_addr

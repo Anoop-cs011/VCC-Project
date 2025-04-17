@@ -5,11 +5,22 @@ import torch.nn as nn
 import pandas as pd
 import numpy as np
 from collections import Counter
+import os
+import subprocess
+import logging
 
 # --- Config ---
-LOG_FILE = "monitor_log.jsonl"
+# Mount bucket path where monitor_log.jsonl is stored
+BUCKET_NAME = "your-bucket-name"
+MOUNT_POINT = "/mnt/gcs_bucket"
+LOG_FILE = os.path.join(MOUNT_POINT, "monitor_log.jsonl")
 MODEL_FILE = "best_kdd_model.pt"
 ATTACK_LIST_FILE = "attack_types.json"
+
+agent_IP = "localhost" # change this if agent is on a separate VM
+agent_port = "5555"
+
+logging.basicConfig(filename="monitor_events.log", level=logging.INFO)
 
 feature_order = [
     'duration', 'protocol_type', 'flag', 'src_bytes',
@@ -29,6 +40,16 @@ categorical_map = {
         'S1': 6, 'S2': 7, 'RSTOS0': 8, 'S3': 9, 'OTH': 10
     }
 }
+
+# Ensure bucket is mounted
+def mount_bucket():
+    if not os.path.isdir(MOUNT_POINT):
+        os.makedirs(MOUNT_POINT)
+    result = subprocess.run(["gcsfuse", BUCKET_NAME, MOUNT_POINT], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    if result.returncode != 0:
+        logging.error(f"[Monitor] Failed to mount bucket: {result.stderr.decode()}")
+    else:
+        logging.info(f"[Monitor] Mounted bucket {BUCKET_NAME} at {MOUNT_POINT}")
 
 # --- Model and attack label setup ---
 class ANN(nn.Module):
@@ -135,7 +156,7 @@ def handle_connection(conn):
         conn.sendall(response.encode())
 
 # --- Agent Server ---
-def run_agent(host='0.0.0.0', port=5555):
+def run_agent(host=agent_IP, port=agent_port):
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.bind((host, port))
         s.listen()

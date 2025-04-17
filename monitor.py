@@ -2,19 +2,29 @@ import threading
 import time
 import json
 import socket
-# import logging
-from collections import defaultdict, deque, Counter
+import logging
+from collections import defaultdict, deque
 from scapy.all import sniff, IP, TCP, UDP
+import subprocess
+import os
 
-log_file = "monitor_log.jsonl"
+# Mount bucket path where monitor_log.jsonl is stored
+BUCKET_NAME = "your-bucket-name"
+MOUNT_POINT = "/mnt/gcs_bucket"
+LOG_PATH = os.path.join(MOUNT_POINT, "monitor_log.jsonl")
 SESSION_FILE = "session_log.csv"
-INTRUSION_ALERTS = []
+alert_file = "intrusion_alerts.jsonl"
+
+agent_IP = "localhost" # change this if agent is on a separate VM
+agent_port = "5555"
+
+INTRUSION_ALERTS = deque(maxlen=20)
 lock = threading.Lock()
 
-# logging.basicConfig(filename="monitor_events.log", level=logging.INFO)
+logging.basicConfig(filename="monitor_events.log", level=logging.INFO)
 
 TIME_WINDOW = 2
-BATCH_SIZE = 10
+BATCH_SIZE = 5
 
 recent_connections = defaultdict(deque)
 recent_services = defaultdict(deque)
@@ -23,6 +33,16 @@ dst_host_conn = defaultdict(deque)
 dst_host_srv_conn = defaultdict(deque)
 
 feature_batch = []  # store batch of 10 features
+
+# Ensure bucket is mounted
+def mount_bucket():
+    if not os.path.isdir(MOUNT_POINT):
+        os.makedirs(MOUNT_POINT)
+    result = subprocess.run(["gcsfuse", BUCKET_NAME, MOUNT_POINT], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    if result.returncode != 0:
+        logging.error(f"[Monitor] Failed to mount bucket: {result.stderr.decode()}")
+    else:
+        logging.info(f"[Monitor] Mounted bucket {BUCKET_NAME} at {MOUNT_POINT}")
 
 def read_login_status(ip):
     try:
@@ -37,13 +57,13 @@ def read_login_status(ip):
 def ask_agent_batch_prediction():
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-            sock.connect(("localhost", 5555))
-            sock.sendall(b"BATCH_REQUEST")  # Simple trigger
+            sock.connect((agent_IP, agent_port))
+            sock.sendall(b"BATCH_REQUEST")
             response = sock.recv(1024).decode()
             return json.loads(response)
     except Exception as e:
         print(f"[Monitor] Agent unreachable: {e}")
-        return {"prediction": 0}
+        return {"prediction": "normal"}
 
 def infer_service(port):
     return {80: "http", 21: "ftp", 22: "ssh", 23: "telnet", 53: "dns"}.get(port, "other")
@@ -59,9 +79,10 @@ def get_tcp_flag(flags):
 
 def process_packet(packet):
     global feature_batch
+
     if IP not in packet:
         return
-    # print("A packet sniffed...")
+
     ip_layer = packet[IP]
     now = time.time()
     src_ip, dst_ip = ip_layer.src, ip_layer.dst
@@ -99,9 +120,9 @@ def process_packet(packet):
 
     if TCP in packet:
         src_port, dst_port = packet[TCP].sport, packet[TCP].dport
-        if dst_port in (8080,80):
+        if dst_port in (8080, 80):
             src_bytes, dst_bytes = byte_len, 0
-        elif src_port in (8080,80):
+        elif src_port in (8080, 80):
             src_bytes, dst_bytes = 0, byte_len
 
     num_failed_logins, logged_in = read_login_status(src_ip)
@@ -128,24 +149,32 @@ def process_packet(packet):
         "rerror_rate": 0
     }
 
-    with open(log_file, "a") as f:
+    with open(LOG_PATH, "a") as f:
         f.write(json.dumps(features) + "\n")
 
     feature_batch.append((time.time(), src_ip))
 
     if len(feature_batch) >= BATCH_SIZE:
-        # print("Requesting intrusion detection...")
         response = ask_agent_batch_prediction()
-        prediction = response.get("prediction", 0)
-        if prediction == 1:
+        prediction = response.get("prediction", "normal")
+        if prediction:
             with lock:
                 for ts, ip in feature_batch:
-                    INTRUSION_ALERTS.append((ts, ip))
+                    alert = {"timestamp": ts, "src_ip": ip, "attack_type": prediction}
+                    while len(INTRUSION_ALERTS) >= 20:
+                        INTRUSION_ALERTS.popleft()
+                    INTRUSION_ALERTS.append(alert)
+
+                    # Append to file
+                    with open(alert_file, "a") as f:
+                        f.write(json.dumps(alert) + "\n")
+                    INTRUSION_ALERTS.append((ts, ip, prediction))
         feature_batch = []
 
 def start_monitor():
+    mount_bucket()
     print("[Monitor] Starting packet sniffer...")
-    sniff(prn=process_packet, filter="ip", store=0, iface="eth0")
+    sniff(prn=process_packet, filter="ip", store=0)
 
 monitor_thread = threading.Thread(target=start_monitor)
 monitor_thread.start()
