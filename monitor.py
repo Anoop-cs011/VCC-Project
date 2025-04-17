@@ -16,7 +16,7 @@ SESSION_FILE = "session_log.csv"
 alert_file = "intrusion_alerts.jsonl"
 
 agent_IP = "localhost"
-agent_port = "8080"  # change this if agent is on the same VM as app.py
+agent_port = 8080  # change this if agent is on the same VM as app.py
 
 INTRUSION_ALERTS = deque(maxlen=20)
 lock = threading.Lock()
