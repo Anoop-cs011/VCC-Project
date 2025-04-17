@@ -15,8 +15,8 @@ LOG_PATH = os.path.join(MOUNT_POINT, "monitor_log.jsonl")
 SESSION_FILE = "session_log.csv"
 alert_file = "intrusion_alerts.jsonl"
 
-agent_IP = "localhost" # change this if agent is on a separate VM
-agent_port = "5555"
+agent_IP = "localhost"
+agent_port = "8080"  # change this if agent is on the same VM as app.py
 
 INTRUSION_ALERTS = deque(maxlen=20)
 lock = threading.Lock()
@@ -44,6 +44,18 @@ def mount_bucket():
     else:
         logging.info(f"[Monitor] Mounted bucket {BUCKET_NAME} at {MOUNT_POINT}")
 
+def get_vm_internal_ip(vm_name, zone):
+    try:
+        result = subprocess.run([
+            "gcloud", "compute", "instances", "describe", vm_name,
+            "--zone", zone,
+            "--format=get(networkInterfaces[0].networkIP)"
+        ], capture_output=True, text=True, check=True)
+        return result.stdout.strip()
+    except subprocess.CalledProcessError as e:
+        logging.info(f"[Monitor] Failed to get IP: {e}")
+        return None
+
 def read_login_status(ip):
     try:
         with open(SESSION_FILE, "r") as f:
@@ -57,10 +69,12 @@ def read_login_status(ip):
 def ask_agent_batch_prediction():
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-            sock.connect((agent_IP, agent_port))
-            sock.sendall(b"BATCH_REQUEST")
-            response = sock.recv(1024).decode()
-            return json.loads(response)
+            agent_IP = get_vm_internal_ip("agent-vm", "us-central1-a")
+            if agent_IP:
+                sock.connect((agent_IP, agent_port))
+                sock.sendall(b"BATCH_REQUEST")
+                response = sock.recv(1024).decode()
+                return json.loads(response)
     except Exception as e:
         print(f"[Monitor] Agent unreachable: {e}")
         return {"prediction": "normal"}
