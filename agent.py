@@ -96,7 +96,7 @@ def preprocess(entry):
         row[key] = val
     return pd.DataFrame([row])
 
-def get_last_n_logs(n=10):
+def get_last_n_logs(n=5):
     try:
         with open(LOG_FILE, "r") as f:
             lines = f.readlines()[-n:]
