@@ -17,8 +17,8 @@ LOG_FILE = os.path.join(MOUNT_POINT, "monitor_log.jsonl")
 MODEL_FILE = "best_kdd_model.pt"
 ATTACK_LIST_FILE = "attack_types.json"
 
-agent_IP = "localhost" # change this if agent is on a separate VM
-agent_port = 8080
+agent_IP = "localhost"
+agent_port = 8080 # change this if agent is on a separate VM
 
 logging.basicConfig(filename="monitor_events.log", level=logging.INFO)
 
@@ -167,4 +167,5 @@ def run_agent(host=agent_IP, port=agent_port):
             handle_connection(conn)
 
 if __name__ == "__main__":
+    mount_bucket()
     run_agent()
