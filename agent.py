@@ -18,7 +18,7 @@ MODEL_FILE = "best_kdd_model.pt"
 ATTACK_LIST_FILE = "attack_types.json"
 
 agent_IP = "localhost" # change this if agent is on a separate VM
-agent_port = "5555"
+agent_port = 8080
 
 logging.basicConfig(filename="monitor_events.log", level=logging.INFO)
 
