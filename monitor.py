@@ -7,6 +7,8 @@ from collections import defaultdict, deque
 from scapy.all import sniff, IP, TCP, UDP
 import subprocess
 import os
+import sys
+sys.path.insert(0, "/home/b22cs011/VCC-Project/myProjectEnv/lib/python3.12/site-packages")
 
 # Mount bucket path where monitor_log.jsonl is stored
 BUCKET_NAME = "monitor-logging"
