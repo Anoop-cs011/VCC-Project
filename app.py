@@ -71,7 +71,7 @@ def is_user_logged_in(ip):
 def get_alerts():
     try:
         with open(alert_file, "r") as f:
-            alerts = [json.loads(line.strip()) for line in f if line.strip()][-10:]
+            alerts = [json.loads(line.strip()) for line in f if line.strip()][-5:]
         for i in range(len(alerts)):
             alerts[i] = tuple(alerts[i].values())
         return alerts

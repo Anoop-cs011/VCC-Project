@@ -1,29 +1,16 @@
-import threading
 import time
 import json
 import socket
-import logging
-from collections import defaultdict, deque
+from collections import deque, defaultdict
 from scapy.all import sniff, IP, TCP, UDP
-import subprocess
-import os
-import sys
-sys.path.insert(0, "/home/b22cs011/VCC-Project/myProjectEnv/lib/python3.12/site-packages")
+import threading
 
-# Mount bucket path where monitor_log.jsonl is stored
-BUCKET_NAME = "monitor-logging"
-MOUNT_POINT = os.path.expanduser("~/gcs_bucket")
-LOG_PATH = os.path.join(MOUNT_POINT, "monitor_log.jsonl")
+AGENT_VM_IP = "34.68.133.171" # CHANGE THIS TO YOUR AGENT
+log_file = "monitor_log.jsonl"
 SESSION_FILE = "session_log.csv"
 alert_file = "intrusion_alerts.jsonl"
-
-agent_IP = "localhost"
-agent_port = 8080  # change this if agent is on the same VM as app.py
-
 INTRUSION_ALERTS = deque(maxlen=20)
 lock = threading.Lock()
-
-logging.basicConfig(filename="monitor_events.log", level=logging.INFO)
 
 TIME_WINDOW = 2
 BATCH_SIZE = 5
@@ -34,29 +21,7 @@ recent_services_per_src = defaultdict(lambda: deque(maxlen=100))
 dst_host_conn = defaultdict(deque)
 dst_host_srv_conn = defaultdict(deque)
 
-feature_batch = []  # store batch of 10 features
-
-# Ensure bucket is mounted
-def mount_bucket():
-    if not os.path.isdir(MOUNT_POINT):
-        os.makedirs(MOUNT_POINT)
-    result = subprocess.run(["gcsfuse", BUCKET_NAME, MOUNT_POINT], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    if result.returncode != 0:
-        logging.error(f"[Monitor] Failed to mount bucket: {result.stderr.decode()}")
-    else:
-        logging.info(f"[Monitor] Mounted bucket {BUCKET_NAME} at {MOUNT_POINT}")
-
-def get_vm_internal_ip(vm_name, zone):
-    try:
-        result = subprocess.run([
-            "gcloud", "compute", "instances", "describe", vm_name,
-            "--zone", zone,
-            "--format=get(networkInterfaces[0].networkIP)"
-        ], capture_output=True, text=True, check=True)
-        return result.stdout.strip()
-    except subprocess.CalledProcessError as e:
-        logging.info(f"[Monitor] Failed to get IP: {e}")
-        return None
+feature_batch = []
 
 def read_login_status(ip):
     try:
@@ -68,30 +33,18 @@ def read_login_status(ip):
     except:
         return 0, 0
 
-def ask_agent_batch_prediction():
+def ask_agent_batch_prediction(batch_features):
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-            agent_IP = get_vm_internal_ip("agent-vm", "us-central1-a")
-            if agent_IP:
-                sock.connect((agent_IP, agent_port))
-                sock.sendall(b"BATCH_REQUEST")
-                response = sock.recv(1024).decode()
-                return json.loads(response)
+            sock.connect((AGENT_VM_IP, 8080))  # Replace AGENT_VM_IP with actual IP
+            message = json.dumps(batch_features).encode()
+            sock.sendall(message)
+            response = sock.recv(4096).decode()
+            return json.loads(response)
     except Exception as e:
-        print(f"[Monitor] Agent unreachable: {e}")
+        print(f"[Monitor] Agent connection failed: {e}")
         return {"prediction": "normal"}
 
-def infer_service(port):
-    return {80: "http", 21: "ftp", 22: "ssh", 23: "telnet", 53: "dns"}.get(port, "other")
-
-def get_tcp_flag(flags):
-    if flags == 0x02:
-        return "S0"
-    elif flags == 0x12:
-        return "SF"
-    elif flags == 0x04:
-        return "REJ"
-    return "OTH"
 
 def process_packet(packet):
     global feature_batch
@@ -109,11 +62,11 @@ def process_packet(packet):
 
     if TCP in packet:
         tcp_layer = packet[TCP]
-        service = infer_service(tcp_layer.dport)
-        flag = get_tcp_flag(tcp_layer.flags)
+        flag = "S0" if tcp_layer.flags == 0x02 else "SF" if tcp_layer.flags == 0x12 else "REJ" if tcp_layer.flags == 0x04 else "OTH"
+        service = {80: "http", 21: "ftp", 22: "ssh", 23: "telnet", 53: "dns"}.get(tcp_layer.dport, "other")
     elif UDP in packet:
         udp_layer = packet[UDP]
-        service = infer_service(udp_layer.dport)
+        service = {53: "dns"}.get(udp_layer.dport, "other")
 
     recent_connections[src_ip].append(now)
     recent_services[dst_ip].append(now)
@@ -140,7 +93,7 @@ def process_packet(packet):
             src_bytes, dst_bytes = byte_len, 0
         elif src_port in (8080, 80):
             src_bytes, dst_bytes = 0, byte_len
-
+    
     num_failed_logins, logged_in = read_login_status(src_ip)
 
     features = {
@@ -165,30 +118,25 @@ def process_packet(packet):
         "rerror_rate": 0
     }
 
-    with open(LOG_PATH, "a") as f:
+    with open(log_file, "a") as f:
         f.write(json.dumps(features) + "\n")
 
-    feature_batch.append((time.time(), src_ip))
+    feature_batch.append((time.time(), src_ip, features))
 
     if len(feature_batch) >= BATCH_SIZE:
-        response = ask_agent_batch_prediction()
-        prediction = response.get("prediction", "normal")
+        timestamps, ips, features_only = zip(*feature_batch)
+        result = ask_agent_batch_prediction(list(features_only))
+        prediction = result.get("prediction", "normal")
         if prediction:
             with lock:
-                for ts, ip in feature_batch:
+                for ts, ip in zip(timestamps, ips):
                     alert = {"timestamp": ts, "src_ip": ip, "attack_type": prediction}
-                    while len(INTRUSION_ALERTS) >= 20:
-                        INTRUSION_ALERTS.popleft()
                     INTRUSION_ALERTS.append(alert)
-
-                    # Append to file
-                    with open(alert_file, "a") as f:
-                        f.write(json.dumps(alert) + "\n")
-                    INTRUSION_ALERTS.append((ts, ip, prediction))
+                    with open(alert_file, "a") as af:
+                        af.write(json.dumps(alert) + "\n")
         feature_batch = []
 
 def start_monitor():
-    mount_bucket()
     print("[Monitor] Starting packet sniffer...")
     sniff(prn=process_packet, filter="ip", store=0)
 
