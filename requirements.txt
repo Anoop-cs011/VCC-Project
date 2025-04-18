@@ -4,4 +4,3 @@ torch
 pandas
 numpy
 gunicorn
-gcsfs
