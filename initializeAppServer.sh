@@ -4,6 +4,7 @@ echo "deb http://packages.cloud.google.com/apt gcsfuse-focal main" | sudo tee /e
 curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add -
 sudo apt update && sudo apt install -y gcsfuse
 mkdir -p ~/gcs_bucket
+sudo apt -y install python3-scapy
 git clone https://github.com/Anoop-cs011/VCC-Project.git
 cd VCC-Project
 virtualenv myProjectEnv
