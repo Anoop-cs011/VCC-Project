@@ -12,7 +12,7 @@ import logging
 # --- Config ---
 # Mount bucket path where monitor_log.jsonl is stored
 BUCKET_NAME = "monitor-logging"
-MOUNT_POINT = "/mnt/gcs_bucket"
+MOUNT_POINT = os.path.expanduser("~/gcs_bucket")
 LOG_FILE = os.path.join(MOUNT_POINT, "monitor_log.jsonl")
 MODEL_FILE = "best_kdd_model.pt"
 ATTACK_LIST_FILE = "attack_types.json"
