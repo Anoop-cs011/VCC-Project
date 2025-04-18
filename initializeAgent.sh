@@ -3,7 +3,7 @@ sudo apt update && sudo apt -y install git python3-pip virtualenv unzip apt-tran
 echo "deb http://packages.cloud.google.com/apt gcsfuse-focal main" | sudo tee /etc/apt/sources.list.d/gcsfuse.list
 curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add -
 sudo apt update && sudo apt install -y gcsfuse
-mkdir -p /mnt/gcs_bucket
+mkdir -p ~/gcs_bucket
 git clone https://github.com/Anoop-cs011/VCC-Project.git
 cd VCC-Project
 virtualenv myProjectEnv
