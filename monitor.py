@@ -10,7 +10,7 @@ import os
 
 # Mount bucket path where monitor_log.jsonl is stored
 BUCKET_NAME = "monitor-logging"
-MOUNT_POINT = "/mnt/gcs_bucket"
+MOUNT_POINT = os.path.expanduser("~/gcs_bucket")
 LOG_PATH = os.path.join(MOUNT_POINT, "monitor_log.jsonl")
 SESSION_FILE = "session_log.csv"
 alert_file = "intrusion_alerts.jsonl"
