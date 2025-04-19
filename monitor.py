@@ -5,7 +5,7 @@ from collections import deque, defaultdict
 from scapy.all import sniff, IP, TCP, UDP
 import threading
 
-AGENT_VM_IP = "34.68.133.171" # CHANGE THIS TO YOUR AGENT
+AGENT_VM_IP = "10.128.0.4" # CHANGE THIS TO YOUR AGENT AI IP
 log_file = "monitor_log.jsonl"
 SESSION_FILE = "session_log.csv"
 alert_file = "intrusion_alerts.jsonl"
