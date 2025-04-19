@@ -39,6 +39,7 @@ def ask_agent_batch_prediction(batch_features):
             sock.connect((AGENT_VM_IP, 5000))  # Replace AGENT_VM_IP with actual IP
             message = json.dumps(batch_features).encode()
             sock.sendall(message)
+            sock.shutdown(socket.SHUT_WR)  # Let the agent know no more data is coming
             response = sock.recv(4096).decode()
             return json.loads(response)
     except Exception as e:
