@@ -13,7 +13,7 @@ INTRUSION_ALERTS = deque(maxlen=20)
 lock = threading.Lock()
 
 TIME_WINDOW = 2
-BATCH_SIZE = 5
+BATCH_SIZE = 20
 
 recent_connections = defaultdict(deque)
 recent_services = defaultdict(deque)
