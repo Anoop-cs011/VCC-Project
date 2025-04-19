@@ -7,4 +7,4 @@ virtualenv myProjectEnv
 source myProjectEnv/bin/activate
 pip install -r requirements.txt
 gunicorn --bind 0.0.0.0:8080 app:app --daemon
-sudo python3 monitor.py
+sudo ./myProjectEnv/bin/python monitor.py
