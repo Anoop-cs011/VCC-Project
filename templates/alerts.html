@@ -8,8 +8,8 @@
 <body>
     <h2>Recent Intrusion Alerts</h2>
     <ul>
-        {% for ts, ip in alerts %}
-            <li>{{ ts }} &rarr; {{ ip }}</li>
+        {% for ts, ip, attack in alerts %}
+            <li>at {{ ts }} &rarr; : from {{ ip }} &rarr; type : {{ attack }}</li>
         {% endfor %}
     </ul>
     <p><a href="/home/{{ username }}">Back to Home</a></p>
