@@ -6,14 +6,14 @@ import pandas as pd
 from collections import Counter
 
 feature_order = [
-    'duration', 'protocol_type', 'flag', 'src_bytes',
-    'dst_bytes', 'land', 'wrong_fragment', 'urgent', 'hot',
-    'num_failed_logins', 'logged_in', 'num_compromised', 'root_shell',
-    'su_attempted', 'num_file_creations', 'num_shells', 'num_access_files',
-    'is_guest_login', 'count', 'srv_count', 'serror_rate', 'rerror_rate',
-    'same_srv_rate', 'diff_srv_rate', 'srv_diff_host_rate',
-    'dst_host_count', 'dst_host_srv_count', 'dst_host_diff_srv_rate',
-    'dst_host_same_src_port_rate', 'dst_host_srv_diff_host_rate'
+    'duration', 'protocol_type', 'flag', 'src_bytes', 'dst_bytes', 'land', 
+    'wrong_fragment', 'urgent', 'hot', 'num_failed_logins', 'logged_in', 
+    'num_compromised', 'root_shell', 'su_attempted', 'num_file_creations', 
+    'num_shells', 'num_access_files', 'is_host_login', 'is_guest_login', 'count', 'srv_count', 
+    'serror_rate', 'rerror_rate', 'same_srv_rate', 'diff_srv_rate', 
+    'srv_diff_host_rate', 'dst_host_count', 'dst_host_srv_count', 
+    'dst_host_diff_srv_rate', 'dst_host_same_src_port_rate', 
+    'dst_host_srv_diff_host_rate'
 ]
 
 categorical_map = {
