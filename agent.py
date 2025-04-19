@@ -42,7 +42,7 @@ class ANN(nn.Module):
 
 attack_labels = json.load(open("attack_types.json"))
 model = ANN(len(feature_order), num_classes=len(attack_labels))
-model.load_state_dict(torch.load("best_kdd_model.pt", map_location=torch.device("cpu")))
+model.load_state_dict(torch.load("best_kdd_100_model.pt", map_location=torch.device("cpu")))
 model.eval()
 print("Model loaded...")
 
