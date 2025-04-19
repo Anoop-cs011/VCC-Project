@@ -78,12 +78,13 @@ def handle_connection(conn):
             data += chunk
         try:
             features_batch = json.loads(data.decode())
+            print("Predicting...")
             prediction = predict_batch(features_batch)
             response = json.dumps({"prediction": prediction})
         except Exception as e:
             response = json.dumps({"error": str(e)})
         conn.sendall(response.encode())
-        print("Prediction sent")
+        print("Prediction sent...")
 
 def run_agent(host='0.0.0.0', port=5000):
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
