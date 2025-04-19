@@ -36,7 +36,7 @@ def read_login_status(ip):
 def ask_agent_batch_prediction(batch_features):
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-            sock.connect((AGENT_VM_IP, 8080))  # Replace AGENT_VM_IP with actual IP
+            sock.connect((AGENT_VM_IP, 5000))  # Replace AGENT_VM_IP with actual IP
             message = json.dumps(batch_features).encode()
             sock.sendall(message)
             response = sock.recv(4096).decode()
