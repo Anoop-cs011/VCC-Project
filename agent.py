@@ -83,6 +83,7 @@ def handle_connection(conn):
         except Exception as e:
             response = json.dumps({"error": str(e)})
         conn.sendall(response.encode())
+        print("Prediction sent")
 
 def run_agent(host='0.0.0.0', port=5000):
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
