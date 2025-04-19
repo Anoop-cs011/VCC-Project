@@ -76,6 +76,7 @@ def get_alerts():
             alerts[i] = tuple(alerts[i].values())
         return alerts
     except FileNotFoundError:
+        print("[App] File not found")
         return []
 
 # Routes
